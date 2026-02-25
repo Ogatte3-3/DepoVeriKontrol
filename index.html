@@ -1,0 +1,475 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Depo Otomasyon Paneli</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['system-ui', 'ui-sans-serif', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+</head>
+<body class="min-h-screen bg-slate-950 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-slate-50 flex items-center justify-center p-4">
+
+    <!-- Login ekranı -->
+    <div id="login-view" class="w-full max-w-md">
+        <div class="bg-slate-900/70 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/80 p-8">
+            <div class="flex items-center gap-3 mb-6">
+                <div class="h-10 w-10 rounded-2xl bg-sky-500/10 border border-sky-500/40 flex items-center justify-center">
+                    <span class="text-2xl">💧</span>
+                </div>
+                <div>
+                    <h1 class="text-xl font-semibold tracking-tight">Depo Kontrol Paneli</h1>
+                    <p class="text-xs text-slate-400">Yalnızca yetkili kullanıcı için erişim</p>
+                </div>
+            </div>
+
+            <form onsubmit="handleLogin(event)" class="space-y-4">
+                <div>
+                    <label for="password" class="block text-xs font-semibold text-slate-300 mb-1.5">
+                        Giriş Şifresi
+                    </label>
+                    <input
+                        id="password"
+                        type="password"
+                        autocomplete="current-password"
+                        class="w-full rounded-lg border border-slate-700 bg-slate-900/70 px-3 py-2 text-sm text-slate-50 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                        placeholder="Şifrenizi girin"
+                        required
+                    >
+                </div>
+
+                <div id="login-error" class="hidden text-xs text-red-400 bg-red-500/10 border border-red-500/40 rounded-lg px-3 py-2"></div>
+
+                <button
+                    type="submit"
+                    class="w-full inline-flex items-center justify-center gap-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-sm font-medium text-white py-2.5 transition focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-offset-2 focus:ring-offset-slate-950"
+                >
+                    Panele Giriş Yap
+                </button>
+            </form>
+
+            <p class="mt-6 text-[11px] leading-relaxed text-slate-500">
+                Gerçek güvenlik için şifren <strong>Lambda / backend tarafında</strong> da kontrol edilmeli.
+                Bu ekrandaki doğrulama, kaynağa düz şifre yazmadan erişimi sınırlar.
+            </p>
+        </div>
+    </div>
+
+    <!-- Uygulama ekranı -->
+    <div id="app-view" class="hidden w-full max-w-6xl mx-auto">
+        <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
+            <div>
+                <h1 class="text-3xl font-semibold tracking-tight text-slate-50">
+                    Depo Takip ve Kontrol Merkezi
+                </h1>
+                <p class="text-sm text-slate-400 mt-1">
+                    Cihaz seviyeleri, depo durumları ve kritik seviye ayarları tek ekranda
+                </p>
+            </div>
+            <div class="flex items-center gap-3">
+                <button
+                    id="refresh-button"
+                    onclick="verileriCek()"
+                    class="inline-flex items-center gap-2 rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs font-medium text-slate-100 hover:bg-slate-800 transition focus:outline-none focus:ring-2 focus:ring-slate-500"
+                >
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
+                    Verileri Yenile
+                </button>
+                <button
+                    onclick="logout()"
+                    class="inline-flex items-center gap-2 rounded-lg border border-red-500/50 bg-red-500/10 px-3 py-1.5 text-xs font-medium text-red-200 hover:bg-red-500/20 transition focus:outline-none focus:ring-2 focus:ring-red-400"
+                >
+                    Çıkış Yap
+                </button>
+            </div>
+        </header>
+
+        <div class="bg-slate-900/70 border border-slate-800 rounded-2xl px-4 py-3 mb-4 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between text-xs">
+            <div class="flex items-center gap-2 text-slate-300">
+                <span class="h-2 w-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                <span id="status-text">Veriler yükleniyor...</span>
+            </div>
+            <div class="flex items-center gap-1 text-slate-400">
+                <span class="hidden sm:inline">Son güncelleme:</span>
+                <span id="last-updated" class="font-mono">-</span>
+            </div>
+        </div>
+
+        <div class="mb-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <label for="search-input" class="text-[11px] font-semibold text-slate-300">
+                Cihaz Ara
+            </label>
+            <div class="w-full sm:max-w-xs">
+                <input
+                    id="search-input"
+                    type="text"
+                    oninput="filtreleCihazlar()"
+                    placeholder="Cihaz adı veya ID ile ara"
+                    class="w-full rounded-lg border border-slate-700 bg-slate-900/60 px-3 py-1.5 text-xs text-slate-100 placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-sky-500 focus:border-sky-500"
+                >
+            </div>
+        </div>
+
+        <div id="cihazlar" class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
+            <p class="text-slate-500 text-center col-span-full">Veriler yükleniyor, lütfen bekleyin...</p>
+        </div>
+    </div>
+
+    <script>
+        // Lambda İşlev URL'si
+        const API_URL = "https://734x43o3giqo6d2rnrczj2nohu0uyllp.lambda-url.eu-north-1.on.aws/";
+
+        // Basit tek kullanıcılı login için ayarlar
+        const AUTH_STORAGE_KEY = "depo_panel_auth";
+        // Şifre: admin123  (SHA-256 hash değeri tutuluyor, düz şifre saklanmıyor)
+        const STORED_PASSWORD_HASH = "240be518fabd2724ddb6f04eeb1da5967448d7e831c08c8fa822809f74c720a9";
+
+        let isAuthenticated = false;
+        let tumCihazlar = [];
+
+        function setStatus(message) {
+            const el = document.getElementById("status-text");
+            if (el) el.textContent = message;
+        }
+
+        function setLastUpdated() {
+            const el = document.getElementById("last-updated");
+            if (el) {
+                const now = new Date();
+                const formatted = now.toLocaleString("tr-TR", {
+                    hour12: false
+                });
+                el.textContent = formatted;
+            }
+        }
+
+        function formatDolumZamani(epochMs) {
+            if (!epochMs || !Number.isFinite(Number(epochMs))) return "";
+            const date = new Date(Number(epochMs));
+            if (Number.isNaN(date.getTime())) return "";
+            return date.toLocaleString("tr-TR", {
+                day: "2-digit",
+                month: "2-digit",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+                second: "2-digit",
+                hour12: false
+            });
+        }
+
+        function getDolumZamani(cihaz, prefix) {
+            if (!cihaz) return null;
+            const candidateKeys = [
+                `${prefix}-dolum-zamani`,
+                `${prefix}_dolum_zamani`,
+                `${prefix}DolumZamani`
+            ];
+
+            let value = null;
+            for (const key of candidateKeys) {
+                if (cihaz[key] !== undefined) {
+                    value = cihaz[key];
+                    break;
+                }
+            }
+
+            if (value === null || value === undefined) return null;
+
+            if (typeof value === "object" && value !== null && "N" in value) {
+                value = value.N;
+            }
+
+            const num = Number(value);
+            return Number.isFinite(num) && num > 0 ? num : null;
+        }
+
+        function showLogin(errorMessage) {
+            const loginView = document.getElementById("login-view");
+            const appView = document.getElementById("app-view");
+            const errorEl = document.getElementById("login-error");
+
+            if (loginView) loginView.classList.remove("hidden");
+            if (appView) appView.classList.add("hidden");
+
+            if (errorEl) {
+                if (errorMessage) {
+                    errorEl.textContent = errorMessage;
+                    errorEl.classList.remove("hidden");
+                } else {
+                    errorEl.classList.add("hidden");
+                    errorEl.textContent = "";
+                }
+            }
+        }
+
+        function showApp() {
+            const loginView = document.getElementById("login-view");
+            const appView = document.getElementById("app-view");
+
+            if (loginView) loginView.classList.add("hidden");
+            if (appView) appView.classList.remove("hidden");
+        }
+
+        async function hashPassword(password) {
+            const encoder = new TextEncoder();
+            const data = encoder.encode(password);
+            const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, "0")).join("");
+        }
+
+        async function handleLogin(event) {
+            event.preventDefault();
+            const input = document.getElementById("password");
+            if (!input) return;
+
+            const password = input.value.trim();
+            if (!password) return;
+
+            if (!STORED_PASSWORD_HASH || STORED_PASSWORD_HASH === "BURAYA_KENDI_SHA256_HASHINIZI_YAZIN") {
+                showLogin("Lütfen önce dosyadaki STORED_PASSWORD_HASH değerini kendi şifrenizin SHA-256 hash'i ile güncelleyin.");
+                return;
+            }
+
+            try {
+                const enteredHash = await hashPassword(password);
+                if (enteredHash === STORED_PASSWORD_HASH) {
+                    isAuthenticated = true;
+                    localStorage.setItem(AUTH_STORAGE_KEY, enteredHash);
+                    showApp();
+                    setStatus("Veriler yükleniyor...");
+                    verileriCek();
+                } else {
+                    showLogin("Geçersiz şifre. Tekrar deneyin.");
+                }
+            } catch (e) {
+                console.error(e);
+                showLogin("Beklenmeyen bir hata oluştu. Tarayıcı konsolunu kontrol edin.");
+            }
+        }
+
+        function logout() {
+            isAuthenticated = false;
+            localStorage.removeItem(AUTH_STORAGE_KEY);
+            const pwInput = document.getElementById("password");
+            if (pwInput) pwInput.value = "";
+            showLogin();
+        }
+
+        async function initAuth() {
+            if (!STORED_PASSWORD_HASH || STORED_PASSWORD_HASH === "BURAYA_KENDI_SHA256_HASHINIZI_YAZIN") {
+                // Hash henüz ayarlanmadıysa direkt login ekranı
+                showLogin();
+                return;
+            }
+
+            const savedHash = localStorage.getItem(AUTH_STORAGE_KEY);
+            if (savedHash && savedHash === STORED_PASSWORD_HASH) {
+                isAuthenticated = true;
+                showApp();
+                setStatus("Veriler yükleniyor...");
+                verileriCek();
+            } else {
+                showLogin();
+            }
+        }
+
+        async function verileriCek() {
+            if (!isAuthenticated) {
+                showLogin();
+                return;
+            }
+
+            const container = document.getElementById("cihazlar");
+            if (container) {
+                container.innerHTML = `<p class="text-slate-500 text-center col-span-full">Veriler yükleniyor, lütfen bekleyin...</p>`;
+            }
+            setStatus("Veriler yükleniyor...");
+
+            try {
+                const response = await fetch(API_URL);
+                if (!response.ok) throw new Error("API'den düzgün yanıt alınamadı.");
+
+                const data = await response.json();
+                tumCihazlar = Array.isArray(data) ? data : [];
+                ekraniGuncelle(tumCihazlar);
+                setStatus("Veriler başarıyla yüklendi");
+                setLastUpdated();
+            } catch (error) {
+                console.error("Veri çekme hatası:", error);
+                if (container) {
+                    container.innerHTML = `<p class="text-red-400 font-medium text-center col-span-full">Veriler çekilemedi! API bağlantınızı veya Lambda CORS ayarlarını kontrol edin.</p>`;
+                }
+                setStatus("Veriler çekilemedi");
+            }
+        }
+
+        function filtreleCihazlar() {
+            const input = document.getElementById("search-input");
+            if (!input || !Array.isArray(tumCihazlar)) return;
+
+            const q = input.value.trim().toLowerCase();
+            if (!q) {
+                ekraniGuncelle(tumCihazlar);
+                setStatus("Tüm cihazlar görüntüleniyor");
+                return;
+            }
+
+            const filtered = tumCihazlar.filter(cihaz => {
+                const ad = (cihaz.cihaz_adi || cihaz.device_id || "").toString().toLowerCase();
+                const id = (cihaz.device_id || "").toString().toLowerCase();
+                return ad.includes(q) || id.includes(q);
+            });
+
+            ekraniGuncelle(filtered);
+            setStatus(`Filtrelenen cihazlar: ${filtered.length}`);
+        }
+
+        function ekraniGuncelle(cihazlar) {
+            const container = document.getElementById("cihazlar");
+            if (!container) return;
+            container.innerHTML = "";
+
+            cihazlar.forEach(cihaz => {
+                const depo1Deger = (cihaz.oran !== undefined && cihaz.oran !== null) ? (cihaz.oran === -1 ? "PASİF" : `%${cihaz.oran}`) : "Veri Yok";
+                const depo2Deger = (cihaz.oran2 !== undefined && cihaz.oran2 !== null) ? (cihaz.oran2 === -1 ? "PASİF" : `%${cihaz.oran2}`) : "Veri Yok";
+                const cihazAdi = cihaz.cihaz_adi || cihaz.device_id;
+                const kritikSeviye = cihaz.kritik_seviye !== undefined ? cihaz.kritik_seviye : 20;
+
+                const depo1Aktif = depo1Deger !== "PASİF" && depo1Deger !== "Veri Yok";
+                const depo2Aktif = depo2Deger !== "PASİF" && depo2Deger !== "Veri Yok";
+
+                const depo1DolumMs = getDolumZamani(cihaz, "depo1");
+                const depo2DolumMs = getDolumZamani(cihaz, "depo2");
+                const depo1DolumText = depo1DolumMs ? `Son dolum: ${formatDolumZamani(depo1DolumMs)}` : "Son dolum bilgisi yok";
+                const depo2DolumText = depo2DolumMs ? `Son dolum: ${formatDolumZamani(depo2DolumMs)}` : "Son dolum bilgisi yok";
+
+                const card = `
+                <div class="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-900/10 p-5 flex flex-col gap-4">
+                    <div class="flex items-start justify-between gap-3">
+                        <div>
+                            <h2 class="text-lg font-semibold text-slate-900">${cihazAdi}</h2>
+                            <p class="text-[11px] text-slate-500 mt-0.5">ID: ${cihaz.device_id}</p>
+                        </div>
+                        <span class="inline-flex items-center rounded-full border border-amber-400/40 bg-amber-500/10 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+                            Kritik Seviye: %${kritikSeviye}
+                        </span>
+                    </div>
+
+                    <div class="grid grid-cols-2 gap-3 bg-slate-50 border border-slate-200 rounded-xl p-3">
+                        <div class="space-y-1">
+                            <p class="text-[11px] text-slate-500 flex items-center gap-1">
+                                <span class="inline-block h-1.5 w-1.5 rounded-full ${depo1Aktif ? "bg-sky-500" : "bg-slate-400"}"></span>
+                                Depo 1
+                            </p>
+                            <p class="text-2xl font-semibold ${depo1Aktif ? "text-sky-600" : "text-slate-400"}">${depo1Deger}</p>
+                            <p class="text-[11px] text-slate-500">${depo1DolumText}</p>
+                        </div>
+                        <div class="space-y-1">
+                            <p class="text-[11px] text-slate-500 flex items-center gap-1">
+                                <span class="inline-block h-1.5 w-1.5 rounded-full ${depo2Aktif ? "bg-emerald-500" : "bg-slate-400"}"></span>
+                                Depo 2
+                            </p>
+                            <p class="text-2xl font-semibold ${depo2Aktif ? "text-emerald-600" : "text-slate-400"}">${depo2Deger}</p>
+                            <p class="text-[11px] text-slate-500">${depo2DolumText}</p>
+                        </div>
+                    </div>
+
+                    <div class="space-y-3">
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-300">Cihaz İsmini Değiştir</label>
+                            <div class="mt-1 flex rounded-lg border border-slate-200 bg-slate-50 overflow-hidden">
+                                <input
+                                    type="text"
+                                    id="isim_${cihaz.device_id}"
+                                    value="${cihazAdi}"
+                                    class="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:outline-none"
+                                >
+                                <button
+                                    onclick="isimGuncelle('${cihaz.device_id}')"
+                                    class="bg-sky-500 hover:bg-sky-600 text-[11px] font-medium text-white px-3 transition"
+                                >
+                                    Kaydet
+                                </button>
+                            </div>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-semibold text-slate-300">Kritik Seviye Alarmı (%)</label>
+                            <div class="mt-1 flex rounded-lg border border-slate-200 bg-slate-50 overflow-hidden w-full">
+                                <input
+                                    type="number"
+                                    id="kritik_${cihaz.device_id}"
+                                    value="${kritikSeviye}"
+                                    class="flex-1 bg-transparent px-2.5 py-1.5 text-xs text-slate-900 placeholder:text-slate-500 focus:outline-none"
+                                >
+                                <button
+                                    onclick="kritikGuncelle('${cihaz.device_id}')"
+                                    class="bg-red-500 hover:bg-red-600 text-[11px] font-medium text-white px-3 transition whitespace-nowrap"
+                                >
+                                    Ayarla
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                `;
+                container.innerHTML += card;
+            });
+        }
+
+        async function isimGuncelle(deviceId) {
+            const yeniIsim = document.getElementById(`isim_${deviceId}`)?.value ?? "";
+            await veriGonder(deviceId, { cihaz_adi: yeniIsim });
+        }
+
+        async function kritikGuncelle(deviceId) {
+            const yeniKritik = document.getElementById(`kritik_${deviceId}`)?.value ?? "";
+            await veriGonder(deviceId, { kritik_seviye: parseInt(yeniKritik, 10) });
+        }
+
+        async function veriGonder(deviceId, payload) {
+            if (!isAuthenticated) {
+                showLogin();
+                return;
+            }
+
+            payload.device_id = deviceId;
+            try {
+                const response = await fetch(API_URL, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify(payload)
+                });
+
+                if (response.ok) {
+                    alert("Başarıyla güncellendi! ✅");
+                    verileriCek();
+                } else {
+                    const errorData = await response.json().catch(() => ({}));
+                    alert("Hata oluştu: " + (errorData.hata || "Bilinmeyen hata"));
+                }
+            } catch (error) {
+                console.error(error);
+                alert("Bağlantı hatası! Tarayıcı CORS politikasından takılmış olabilir.");
+            }
+        }
+
+        // İlk yüklemede auth durumunu kontrol et
+        initAuth();
+
+        // İsteğe bağlı: kendi şifre hash'inizi üretmek için tarayıcı konsolunda şunu çalıştırabilirsiniz:
+        // (async () => { console.log(await hashPassword("BURAYA_SIFRENIZI_YAZIN")); })();
+    </script>
+</body>
+</html>
