@@ -19,7 +19,6 @@
 </head>
 <body class="min-h-screen bg-slate-950 bg-gradient-to-br from-slate-900 via-slate-950 to-slate-900 text-slate-50 flex items-center justify-center p-4">
 
-    <!-- Login ekranı -->
     <div id="login-view" class="w-full max-w-md">
         <div class="bg-slate-900/70 backdrop-blur-xl border border-slate-800 rounded-2xl shadow-2xl shadow-slate-900/80 p-8">
             <div class="flex items-center gap-3 mb-6">
@@ -64,7 +63,6 @@
         </div>
     </div>
 
-    <!-- Uygulama ekranı -->
     <div id="app-view" class="hidden w-full max-w-6xl mx-auto">
         <header class="flex flex-col gap-4 md:flex-row md:items-center md:justify-between mb-8">
             <div>
@@ -268,7 +266,6 @@
 
         async function initAuth() {
             if (!STORED_PASSWORD_HASH || STORED_PASSWORD_HASH === "BURAYA_KENDI_SHA256_HASHINIZI_YAZIN") {
-                // Hash henüz ayarlanmadıysa direkt login ekranı
                 showLogin();
                 return;
             }
@@ -354,6 +351,18 @@
                 const depo1DolumText = depo1DolumMs ? `Son dolum: ${formatDolumZamani(depo1DolumMs)}` : "Son dolum bilgisi yok";
                 const depo2DolumText = depo2DolumMs ? `Son dolum: ${formatDolumZamani(depo2DolumMs)}` : "Son dolum bilgisi yok";
 
+                let sonGuncellemeText = "Güncelleme zamanı bilinmiyor";
+                if (cihaz.payload) {
+                    try {
+                        const payloadObj = JSON.parse(cihaz.payload);
+                        if (payloadObj.timestamp) {
+                            sonGuncellemeText = `Son Güncelleme: ${formatDolumZamani(payloadObj.timestamp)}`;
+                        }
+                    } catch (e) {
+                        console.error("Payload JSON parse hatası:", e);
+                    }
+                }
+
                 const card = `
                 <div class="bg-white border border-slate-200 rounded-2xl shadow-lg shadow-slate-900/10 p-5 flex flex-col gap-4">
                     <div class="flex items-start justify-between gap-3">
@@ -383,6 +392,13 @@
                             <p class="text-2xl font-semibold ${depo2Aktif ? "text-emerald-600" : "text-slate-400"}">${depo2Deger}</p>
                             <p class="text-[11px] text-slate-500">${depo2DolumText}</p>
                         </div>
+                    </div>
+
+                    <div class="text-[11px] font-medium text-slate-500 bg-slate-100/50 rounded-lg py-1.5 px-3 flex items-center gap-1.5 border border-slate-200">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-3.5 w-3.5 text-slate-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
+                            <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                        </svg>
+                        ${sonGuncellemeText}
                     </div>
 
                     <div class="space-y-3">
@@ -465,11 +481,7 @@
             }
         }
 
-        // İlk yüklemede auth durumunu kontrol et
         initAuth();
-
-        // İsteğe bağlı: kendi şifre hash'inizi üretmek için tarayıcı konsolunda şunu çalıştırabilirsiniz:
-        // (async () => { console.log(await hashPassword("BURAYA_SIFRENIZI_YAZIN")); })();
     </script>
 </body>
 </html>
